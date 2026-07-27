@@ -1,0 +1,14 @@
+# Dependencias del engine (independiente del backend/frontend).
+# El engine debe poder ejecutarse solo. Instalar con el .venv activado:
+#   pip install -r engine/requirements.txt
+
+# --- Base de datos (SQL Server) ---
+sqlalchemy>=2.0
+pyodbc>=5.1
+
+# --- Cálculo numérico / estadística ---
+numpy>=1.26
+pandas>=2.2
+
+# --- Configuración por entorno ---
+python-dotenv>=1.0

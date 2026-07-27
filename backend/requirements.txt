@@ -1,0 +1,14 @@
+# Dependencias del backend (API) y del engine.
+# Instalar con el .venv activado:  pip install -r backend/requirements.txt
+
+# --- API ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# --- Base de datos (SQL Server) ---
+sqlalchemy>=2.0
+pyodbc>=5.1
+
+# --- Configuración por entorno ---
+python-dotenv>=1.0
