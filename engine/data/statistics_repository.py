@@ -135,6 +135,46 @@ def goles_concedidos(team_id: int, de_local: bool, engine: Engine | None = None)
 
 
 # --------------------------------------------------------------------------
+# Tarjetas (usadas por el mercado de Tarjetas)
+# Conteo: cada tarjeta amarilla o roja cuenta 1 -> (yellow_cards + red_cards).
+# --------------------------------------------------------------------------
+
+def tarjetas_generadas(team_id: int, de_local: bool, engine: Engine | None = None) -> PromedioMuestra:
+    """Promedio de tarjetas que RECIBE un equipo (amarillas + rojas), por localía."""
+    sql = """
+        SELECT AVG(CAST(yellow_cards + red_cards AS FLOAT)) AS promedio,
+               COUNT(yellow_cards + red_cards)              AS n
+        FROM dbo.MatchStatistics
+        WHERE team_id = :tid
+          AND is_home = :ish
+          AND yellow_cards IS NOT NULL
+          AND red_cards IS NOT NULL
+    """
+    return _ejecutar_promedio(sql, {"tid": team_id, "ish": 1 if de_local else 0}, engine)
+
+
+def tarjetas_provocadas(team_id: int, de_local: bool, engine: Engine | None = None) -> PromedioMuestra:
+    """Promedio de tarjetas que un equipo PROVOCA en su rival, por localía.
+
+    Es el análogo defensivo: las tarjetas del oponente en los partidos del
+    equipo. Se une la fila del equipo con la de su rival por match_id.
+    """
+    sql = """
+        SELECT AVG(CAST(opp.yellow_cards + opp.red_cards AS FLOAT)) AS promedio,
+               COUNT(opp.yellow_cards + opp.red_cards)              AS n
+        FROM dbo.MatchStatistics t
+        JOIN dbo.MatchStatistics opp
+          ON opp.match_id = t.match_id
+         AND opp.team_id  = t.opponent_team_id
+        WHERE t.team_id = :tid
+          AND t.is_home = :ish
+          AND opp.yellow_cards IS NOT NULL
+          AND opp.red_cards IS NOT NULL
+    """
+    return _ejecutar_promedio(sql, {"tid": team_id, "ish": 1 if de_local else 0}, engine)
+
+
+# --------------------------------------------------------------------------
 # Ayudantes de catálogo (para pruebas y para mostrar nombres en explicaciones)
 # --------------------------------------------------------------------------
 

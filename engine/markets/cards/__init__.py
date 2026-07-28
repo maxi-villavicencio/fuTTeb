@@ -10,4 +10,12 @@ para el mercado de Tarjetas reutilizando la estructura común de todos los merca
     explanation.py  -> genera la explicación legible del índice
 
 Este paquete NO debe importar nada de FastAPI ni del frontend.
+
+Tarjetas reutiliza el motor Poisson compartido (engine.probability.poisson) y
+la convención de líneas compartida (engine.core.lineas, Grupo A); no
+reimplementa esa lógica.
 """
+
+from .calculator import MARKET_CODE, calcular
+
+__all__ = ["calcular", "MARKET_CODE"]
