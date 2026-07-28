@@ -44,5 +44,15 @@ class Settings:
 
     APP_NAME: str = os.getenv("APP_NAME", "Bet Analyzer AI")
 
+    # Orígenes permitidos para CORS (el frontend en desarrollo).
+    # Lista separada por comas en la variable de entorno CORS_ORIGINS.
+    CORS_ORIGINS: list[str] = [
+        origen.strip()
+        for origen in os.getenv(
+            "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+        ).split(",")
+        if origen.strip()
+    ]
+
 
 settings = Settings()

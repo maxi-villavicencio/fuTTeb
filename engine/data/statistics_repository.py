@@ -198,3 +198,29 @@ def id_por_nombre_corto(nombre: str, engine: Engine | None = None) -> int | None
             {"n": nombre},
         ).first()
     return int(fila.id) if fila else None
+
+
+def listar_equipos(engine: Engine | None = None) -> list[dict]:
+    """Lista todos los equipos (id, name, short_name), ordenados por nombre."""
+    engine = engine or get_engine()
+    with engine.connect() as conn:
+        filas = conn.execute(
+            text("SELECT id, name, short_name FROM dbo.Teams ORDER BY name")
+        ).all()
+    return [
+        {"id": int(f.id), "name": f.name, "short_name": f.short_name}
+        for f in filas
+    ]
+
+
+def equipo_por_id(team_id: int, engine: Engine | None = None) -> dict | None:
+    """Devuelve {id, name, short_name} del equipo, o None si no existe."""
+    engine = engine or get_engine()
+    with engine.connect() as conn:
+        fila = conn.execute(
+            text("SELECT id, name, short_name FROM dbo.Teams WHERE id = :tid"),
+            {"tid": team_id},
+        ).first()
+    if fila is None:
+        return None
+    return {"id": int(fila.id), "name": fila.name, "short_name": fila.short_name}

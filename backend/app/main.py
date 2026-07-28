@@ -11,9 +11,10 @@ Luego probar: http://127.0.0.1:8000/health
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import analyze, health
+from .routers import analyze, health, teams
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -21,7 +22,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CORS: permitir que el frontend (Next.js en desarrollo) llame a la API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
+app.include_router(teams.router)
 app.include_router(analyze.router)
 
 
@@ -32,4 +43,6 @@ def root() -> dict:
         "service": settings.APP_NAME,
         "docs": "/docs",
         "health": "/health",
+        "teams": "/teams",
+        "analyze": "/analyze (POST)",
     }

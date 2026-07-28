@@ -1,39 +1,65 @@
-"""Endpoint de análisis (placeholder).
+"""Endpoint de análisis.
 
-``POST /analyze`` -> en el diseño final, la API delega en el engine para
-obtener el Índice de Apuesta de un mercado y solo devuelve el resultado.
+``POST /analyze`` -> recibe dos equipos y devuelve los 4 mercados calculados por
+el engine (corners, goles, tarjetas, btts). La API NO calcula: delega en el
+servicio, que delega en el engine, y solo da forma HTTP al resultado.
 
-De momento es un MOCK: no calcula nada (la API nunca calcula) y no llama al
-engine todavía. Solo demuestra el contrato de entrada/salida.
+Notas de errores:
+  - equipos iguales      -> 400 (Bad Request)
+  - equipo inexistente   -> 404 (Not Found)
+  - datos insuficientes  -> NO es error: se devuelve 200 con confiable=False y
+                            las advertencias correspondientes (lo decide el engine).
 """
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
+
+from engine.core.types import MarketResult
+
+from ..schemas import AnalyzeRequest, AnalyzeResponse, MarketResponse, TeamOut
+from ..services import analysis_service
+from ..services.analysis_service import EquipoInexistenteError, MismoEquipoError
 
 router = APIRouter(tags=["analyze"])
 
 
-class AnalyzeRequest(BaseModel):
-    """Entrada del análisis (esbozo)."""
+def _a_market_response(resultado: MarketResult) -> MarketResponse:
+    """Convierte un MarketResult del engine en el modelo de respuesta de la API."""
+    return MarketResponse(
+        market=resultado.market,
+        indice=resultado.indice,
+        confiable=resultado.confiable,
+        advertencias=resultado.advertencias,
+        explicacion=resultado.explicacion,
+        valores=resultado.valores,
+    )
 
-    home_team: str
-    away_team: str
-    market: str  # p. ej. "goals", "corners", "cards", "shots", "btts"
 
+@router.post("/analyze", response_model=AnalyzeResponse)
+def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+    """Analiza un partido (local vs visitante) y devuelve los 4 mercados."""
+    try:
+        datos = analysis_service.analizar_partido(
+            request.home_team_id, request.away_team_id
+        )
+    except MismoEquipoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except EquipoInexistenteError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # error inesperado del engine o de la base
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al calcular el análisis: {exc}",
+        ) from exc
 
-@router.post("/analyze")
-def analyze(request: AnalyzeRequest) -> dict:
-    """Devuelve un resultado MOCK con la forma esperada del engine.
+    home = TeamOut(**datos["home"])
+    away = TeamOut(**datos["away"])
 
-    En el futuro, aquí se llamará al engine:
-        resultado = engine.core.registry.get_market(request.market).calculate(ctx)
-    y se devolverá ``resultado`` tal cual. La API no calcula.
-    """
-    return {
-        "market": request.market,
-        "match": f"{request.home_team} vs {request.away_team}",
-        "bet_index": None,  # mock: el engine lo calculará
-        "probabilities": {},  # mock
-        "explanation": "Respuesta de ejemplo (mock). El engine aún no está conectado.",
-        "mock": True,
-    }
+    return AnalyzeResponse(
+        partido=f"{home.name} vs {away.name}",
+        home_team=home,
+        away_team=away,
+        corners=_a_market_response(datos["corners"]),
+        goals=_a_market_response(datos["goals"]),
+        cards=_a_market_response(datos["cards"]),
+        btts=_a_market_response(datos["btts"]),
+    )
