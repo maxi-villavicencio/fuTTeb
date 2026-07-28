@@ -34,12 +34,17 @@ def build_connection_url() -> str:
     if settings.DATABASE_URL:
         return settings.DATABASE_URL
 
+    # Nota Driver 18: exige cifrado por defecto. En local sin certificado válido
+    # hace falta TrustServerCertificate=yes (y Encrypt=optional) o la conexión
+    # falla con un error de SSL/certificado.
     odbc_params = quote_plus(
         f"DRIVER={{{settings.DB_DRIVER}}};"
-        f"SERVER={settings.DB_SERVER};"
+        f"SERVER={settings.DB_SERVER};"  # soporta instancia nombrada: MAXI\\SQLEXPRESS
         f"DATABASE={settings.DB_NAME};"
         f"UID={settings.DB_USER};"
-        f"PWD={settings.DB_PASSWORD}"
+        f"PWD={settings.DB_PASSWORD};"
+        f"Encrypt={settings.DB_ENCRYPT};"
+        f"TrustServerCertificate={settings.DB_TRUST_SERVER_CERTIFICATE}"
     )
     return f"mssql+pyodbc:///?odbc_connect={odbc_params}"
 
