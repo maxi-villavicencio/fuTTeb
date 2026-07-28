@@ -92,6 +92,49 @@ def corners_concedidos(team_id: int, de_local: bool, engine: Engine | None = Non
 
 
 # --------------------------------------------------------------------------
+# Goles (usados por el mercado de Goles)
+# --------------------------------------------------------------------------
+
+def goles_marcados(team_id: int, de_local: bool, engine: Engine | None = None) -> PromedioMuestra:
+    """Promedio de goles que un equipo MARCA, filtrando por localía.
+
+    Args:
+        team_id:  equipo a analizar.
+        de_local: True -> partidos de local (is_home=1); False -> de visitante.
+    """
+    sql = """
+        SELECT AVG(CAST(goals AS FLOAT)) AS promedio,
+               COUNT(goals)              AS n
+        FROM dbo.MatchStatistics
+        WHERE team_id = :tid
+          AND is_home = :ish
+          AND goals IS NOT NULL
+    """
+    return _ejecutar_promedio(sql, {"tid": team_id, "ish": 1 if de_local else 0}, engine)
+
+
+def goles_concedidos(team_id: int, de_local: bool, engine: Engine | None = None) -> PromedioMuestra:
+    """Promedio de goles que un equipo CONCEDE, filtrando por localía.
+
+    Usa la columna cruda ``goals_conceded`` de MatchStatistics (no necesita
+    unir con la fila del rival).
+
+    Args:
+        team_id:  equipo a analizar.
+        de_local: True -> partidos de local (is_home=1); False -> de visitante.
+    """
+    sql = """
+        SELECT AVG(CAST(goals_conceded AS FLOAT)) AS promedio,
+               COUNT(goals_conceded)              AS n
+        FROM dbo.MatchStatistics
+        WHERE team_id = :tid
+          AND is_home = :ish
+          AND goals_conceded IS NOT NULL
+    """
+    return _ejecutar_promedio(sql, {"tid": team_id, "ish": 1 if de_local else 0}, engine)
+
+
+# --------------------------------------------------------------------------
 # Ayudantes de catálogo (para pruebas y para mostrar nombres en explicaciones)
 # --------------------------------------------------------------------------
 

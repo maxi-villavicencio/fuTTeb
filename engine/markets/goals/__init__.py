@@ -10,4 +10,11 @@ para el mercado de Goles reutilizando la estructura común de todos los mercados
     explanation.py  -> genera la explicación legible del índice
 
 Este paquete NO debe importar nada de FastAPI ni del frontend.
+
+El motor de Poisson NO vive aquí: es una pieza compartida en
+``engine.probability.poisson`` para que otros mercados lo reutilicen.
 """
+
+from .calculator import MARKET_CODE, calcular
+
+__all__ = ["calcular", "MARKET_CODE"]
