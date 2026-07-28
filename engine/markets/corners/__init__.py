@@ -11,3 +11,7 @@ para el mercado de Córners reutilizando la estructura común de todos los merca
 
 Este paquete NO debe importar nada de FastAPI ni del frontend.
 """
+
+from .calculator import MARKET_CODE, calcular
+
+__all__ = ["calcular", "MARKET_CODE"]

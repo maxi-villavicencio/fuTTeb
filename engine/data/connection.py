@@ -1,12 +1,19 @@
 """Conexión del engine a SQL Server.
 
-Crea el ``Engine`` de SQLAlchemy (dialecto ``mssql+pyodbc``) que usan los
-repositorios. La cadena de conexión se obtiene por variables de entorno; el
-engine NUNCA la hardcodea ni depende del backend.
+Reutiliza la configuración de conexión ya existente en el backend
+(``backend.app.database``), que lee las credenciales del ``.env`` de la raíz.
+Importante: ese módulo NO importa FastAPI (solo SQLAlchemy + dotenv), así que
+el engine sigue siendo independiente de la capa web.
 
-Nota: este módulo es independiente del backend. Backend y engine pueden
-compartir la misma base de datos, pero cada uno abre su propia conexión.
+Se centraliza aquí el acceso al ``Engine`` de SQLAlchemy para que los
+repositorios de ``engine.data`` no dependan de rutas concretas del backend.
 """
 
-# TODO: leer la cadena de conexión desde variables de entorno y crear el
-# Engine de SQLAlchemy (mssql+pyodbc). Sin modelos ni tablas todavía.
+from sqlalchemy.engine import Engine
+
+from backend.app.database import get_engine as _get_backend_engine
+
+
+def get_engine() -> Engine:
+    """Devuelve el Engine de SQLAlchemy compartido (conexión a SQL Server)."""
+    return _get_backend_engine()
