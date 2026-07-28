@@ -15,6 +15,8 @@ devuelve un MarketResult estándar. El índice "titular" del MarketResult es el
 de Over/Under; el resto de los mercados viaja en ``valores``.
 """
 
+from dataclasses import dataclass
+
 from sqlalchemy.engine import Engine
 
 from engine.core.types import MarketResult
@@ -25,6 +27,26 @@ from engine.probability import poisson
 from . import explanation, rules, weights
 
 MARKET_CODE = "goals"
+
+
+@dataclass
+class GolesEsperados:
+    """Goles esperados de un partido + sus componentes (fuente única de verdad).
+
+    Esta estructura la produce ``goles_esperados_partido`` y la consumen tanto
+    el mercado de Goles como el de BTTS, para no duplicar el cálculo de las
+    lambdas ni las lecturas de la base.
+    """
+
+    nombre_local: str
+    nombre_visitante: str
+    lambda_local: float          # goles esperados del local
+    lambda_visitante: float      # goles esperados del visitante
+    # Componentes crudos (promedio + tamaño de muestra) para explicación/reglas.
+    local_marca: PromedioMuestra
+    visitante_concede: PromedioMuestra
+    visitante_marca: PromedioMuestra
+    local_concede: PromedioMuestra
 
 
 def _combinar(marca: PromedioMuestra, concede: PromedioMuestra) -> float:
@@ -44,6 +66,37 @@ def _combinar(marca: PromedioMuestra, concede: PromedioMuestra) -> float:
 
     peso_total = sum(peso for peso, _ in componentes)
     return sum(peso * valor for peso, valor in componentes) / peso_total
+
+
+def goles_esperados_partido(
+    home_team_id: int,
+    away_team_id: int,
+    engine: Engine | None = None,
+) -> GolesEsperados:
+    """Calcula los goles esperados de un partido (ponderación 60/40).
+
+    FUENTE ÚNICA DE VERDAD del cálculo de lambdas. La usan el mercado de Goles
+    y el de BTTS; ningún otro plugin debe reimplementar este cálculo.
+
+        lambda_local = 60% ataque del local (marca de local)
+                     + 40% defensa del rival (visitante concede de visitante)
+        lambda_visitante = simétrico.
+    """
+    local_marca = repo.goles_marcados(home_team_id, de_local=True, engine=engine)
+    visitante_concede = repo.goles_concedidos(away_team_id, de_local=False, engine=engine)
+    visitante_marca = repo.goles_marcados(away_team_id, de_local=False, engine=engine)
+    local_concede = repo.goles_concedidos(home_team_id, de_local=True, engine=engine)
+
+    return GolesEsperados(
+        nombre_local=repo.nombre_equipo(home_team_id, engine=engine),
+        nombre_visitante=repo.nombre_equipo(away_team_id, engine=engine),
+        lambda_local=_combinar(local_marca, visitante_concede),
+        lambda_visitante=_combinar(visitante_marca, local_concede),
+        local_marca=local_marca,
+        visitante_concede=visitante_concede,
+        visitante_marca=visitante_marca,
+        local_concede=local_concede,
+    )
 
 
 def _generar_rangos(total_maximo: int, ancho: int) -> list[tuple[str, int, int]]:
@@ -107,14 +160,14 @@ def calcular(
     """Calcula el mercado de Goles para un enfrentamiento local vs visitante."""
     weights.validar_config()
 
-    # --- 1 y 2: goles esperados (lambdas) via promedio ponderado 60/40 -----
-    local_marca = repo.goles_marcados(home_team_id, de_local=True, engine=engine)
-    visitante_concede = repo.goles_concedidos(away_team_id, de_local=False, engine=engine)
-    visitante_marca = repo.goles_marcados(away_team_id, de_local=False, engine=engine)
-    local_concede = repo.goles_concedidos(home_team_id, de_local=True, engine=engine)
-
-    lambda_local = _combinar(local_marca, visitante_concede)
-    lambda_visitante = _combinar(visitante_marca, local_concede)
+    # --- 1 y 2: goles esperados (lambdas) via función reutilizable 60/40 ----
+    esperados = goles_esperados_partido(home_team_id, away_team_id, engine=engine)
+    local_marca = esperados.local_marca
+    visitante_concede = esperados.visitante_concede
+    visitante_marca = esperados.visitante_marca
+    local_concede = esperados.local_concede
+    lambda_local = esperados.lambda_local
+    lambda_visitante = esperados.lambda_visitante
 
     # --- 3: matriz de marcadores via Poisson (motor compartido) ------------
     matriz = poisson.matriz_conjunta(
@@ -145,8 +198,8 @@ def calcular(
     ]
 
     # --- Confiabilidad (mismo criterio que córners) ------------------------
-    nombre_local = repo.nombre_equipo(home_team_id, engine=engine)
-    nombre_visitante = repo.nombre_equipo(away_team_id, engine=engine)
+    nombre_local = esperados.nombre_local
+    nombre_visitante = esperados.nombre_visitante
     advertencias, confiable = rules.validar_confiabilidad(
         nombre_local=nombre_local,
         partidos_local=local_marca.partidos,

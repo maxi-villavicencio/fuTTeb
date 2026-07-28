@@ -10,4 +10,12 @@ para el mercado de Ambos equipos marcan (BTTS) reutilizando la estructura común
     explanation.py  -> genera la explicación legible del índice
 
 Este paquete NO debe importar nada de FastAPI ni del frontend.
+
+BTTS reutiliza el motor Poisson compartido (engine.probability.poisson) y la
+función de goles esperados de Goles (engine.markets.goals.calculator); no
+reimplementa esa lógica.
 """
+
+from .calculator import MARKET_CODE, calcular
+
+__all__ = ["calcular", "MARKET_CODE"]
