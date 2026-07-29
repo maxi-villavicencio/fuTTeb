@@ -12,3 +12,6 @@ pyodbc>=5.1
 
 # --- Configuración por entorno ---
 python-dotenv>=1.0
+
+# --- Cliente HTTP (llamadas a API-Football, scripts de exploración/ingesta) ---
+requests>=2.31
