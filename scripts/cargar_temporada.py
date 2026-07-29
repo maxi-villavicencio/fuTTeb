@@ -2,8 +2,8 @@
 
 Carga las estadísticas reales de los partidos finalizados de la Liga Profesional
 Argentina (o la liga indicada), temporada por temporada. Está pensado para
-correrse VARIOS DÍAS seguidos respetando el límite de 100 requests/día del plan
-gratuito: es idempotente (no duplica) y reanudable (retoma donde quedó).
+correrse VARIOS DÍAS seguidos respetando el límite diario de requests de la API:
+es idempotente (no duplica) y reanudable (retoma donde quedó).
 
 Uso (desde la raíz del proyecto):
 
@@ -18,8 +18,15 @@ Configuración por entorno (.env):
 
 NO guarda alineaciones (solo estadísticas). NO hardcodea la key.
 
-Nota de plan gratuito: solo hay acceso a temporadas 2022-2024. Para 2026 (la
-temporada objetivo del proyecto) hace falta un plan de pago; el código no cambia.
+Temporadas disponibles (plan GRATUITO, confirmado al descargar): solo se pueden
+descargar fixtures de las temporadas 2022, 2023 y 2024. Las temporadas 2025 y
+2026 aparecen en el coverage del endpoint /leagues, pero su DESCARGA está
+bloqueada: la API responde "Free plans do not have access to this season, try
+from 2022 to 2024".
+
+Por eso el proyecto desarrolla y valida el engine con datos de 2024 (gratis).
+Migrar a la temporada actual (2025/2026) requiere un plan de pago y solo implica
+cambiar el PARÁMETRO de temporada: el código no cambia.
 """
 
 import os
@@ -370,11 +377,17 @@ def main() -> int:
         print(f"❌ No se pudo traer la lista de partidos: {exc}")
         return 1
 
+    # El filtro status=FT + season hace que la API devuelva SOLO los partidos ya
+    # finalizados de esa temporada. Para una temporada en curso (p. ej. 2026)
+    # serán menos que en una terminada; eso es normal y no es un error.
     fixtures = fixtures_resp.get("response", [])
     total = len(fixtures)
     print(f"Partidos finalizados en la temporada: {total}")
     if total == 0:
-        print("⚠ No hay partidos finalizados (¿temporada sin datos o sin acceso?).")
+        print(
+            "ℹ Todavía no hay partidos finalizados en esta temporada "
+            "(puede estar recién empezando). No hay nada para cargar por ahora."
+        )
         return 0
 
     # Cargar los más antiguos primero (orden cronológico) para un avance natural.
